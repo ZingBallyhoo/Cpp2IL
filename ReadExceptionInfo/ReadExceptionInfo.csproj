@@ -12,4 +12,10 @@
     <PackageReference Include="Iced" Version="1.13.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Cpp2IL\Cpp2IL.csproj" />
+    <ProjectReference Include="..\Echo\src\Platforms\Echo.Platforms.Iced\Echo.Platforms.Iced.csproj" />
+    <ProjectReference Include="..\Echo\test\Platforms\Echo.Platforms.DummyPlatform\Echo.Platforms.DummyPlatform.csproj" />
+  </ItemGroup>
+
 </Project>

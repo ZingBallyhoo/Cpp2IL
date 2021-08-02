@@ -9,6 +9,7 @@ using ArcticFox.Codec.Binary;
 using AsmResolver.PE;
 using AsmResolver.PE.Exceptions.X64;
 using AsmResolver.PE.File;
+using Cpp2IL.Core;
 using Iced.Intel;
 
 namespace ReadExceptionInfo
@@ -17,17 +18,39 @@ namespace ReadExceptionInfo
     {
         public static void Main(string[] args)
         {
-            var peFile = PEFile.FromFile(args[0]);
+            var cpp2IlArgs = Cpp2IL.Program.GetRuntimeOptionsFromCommandLine(new[]
+            {
+                @"--game-path",
+                @"D:\re\il2cpp\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64",
+                @"--force-binary-path",
+                @"D:\re\il2cpp\Il2CppTests\Il2CppInspector\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64\GameAssembly-MyAttribute-x64.dll",
+                @"--force-metadata-path",
+                @"D:\re\il2cpp\Il2CppTests\Il2CppInspector\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64\global-metadata.dat",
+                @"--force-unity-version",
+                @"2019.4.15"
+            });
+
+            var peFile = PEFile.FromFile(cpp2IlArgs.PathToAssembly);
             var peImage = PEImage.FromFile(peFile);
             
+            Cpp2IlApi.InitializeLibCpp2Il(cpp2IlArgs.PathToAssembly, cpp2IlArgs.PathToMetadata, cpp2IlArgs.UnityVersion, cpp2IlArgs.EnableVerboseLogging, cpp2IlArgs.EnableRegistrationPrompts);
+            Cpp2IlApi.MakeDummyDLLs();
+            var keyFunctions = Cpp2IlApi.ScanForKeyFunctionAddresses();
+
             foreach (var exceptionEntry in peImage.Exceptions.GetEntries())
             {
                 var funcBaseVA = peImage.ImageBase + exceptionEntry.Begin.Rva;
-                if (funcBaseVA != 0x180795320)
+                if (funcBaseVA != 0x180794910)
                 {
-                    
                     continue;
                 }
+                
+                var funcEndVA = peImage.ImageBase + exceptionEntry.End.Rva;
+                var funcReader = peFile.CreateReaderAtRva(exceptionEntry.Begin.Rva, 500000);
+                var funcCodeBytes = funcReader.ReadToEnd();
+                var disassembler = Decoder.Create(64, funcCodeBytes, funcBaseVA);
+
+                ControlFlowTest.DoCFG(funcCodeBytes, funcBaseVA, keyFunctions);
 
                 var x64ExceptionEntry = (X64RuntimeFunction) exceptionEntry;
 
@@ -90,10 +113,6 @@ namespace ReadExceptionInfo
                 Debug.Assert(ipToStateMap != null);
                 
                 var tryLowsMap = tryBlocks.ToDictionary(x => x.tryLow, x => x);
-
-                var funcEndVA = peImage.ImageBase + exceptionEntry.End.Rva;
-                var funcReader = peFile.CreateReaderAtRva(exceptionEntry.Begin.Rva, exceptionEntry.End.Rva - exceptionEntry.Begin.Rva);
-                var disassembler = Decoder.Create(64, funcReader.ReadToEnd(), funcBaseVA);
 
                 var currentStateIndex = 0;
                 var currentState = -1;
@@ -245,8 +264,6 @@ namespace ReadExceptionInfo
                 Console.Out.WriteLine(writer.InnerWriter.ToString());
             }
         }
-
-        private record StateVis(IndentedTextWriter protectedBlock, IndentedTextWriter handlerBlock);
 
         private static BitReader CreateEHReaderAtRva(PEFile peFile, uint rva)
         {
