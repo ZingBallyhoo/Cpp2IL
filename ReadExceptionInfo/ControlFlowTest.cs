@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Cpp2IL.Core;
+using Echo.Ast.Construction;
 using Echo.ControlFlow;
 using Echo.ControlFlow.Analysis.Domination;
 using Echo.ControlFlow.Blocks;
@@ -33,17 +34,24 @@ namespace ReadExceptionInfo
             return cfgBuilder.ConstructFlowGraph(entrypoint);
         }
         
-        public static (ControlFlowGraph<Instruction> Cfg, DataFlowGraph<Instruction> Dfg) ConstructSymbolicFlowGraph(byte[] rawCode, long entrypoint, ulong baseAddress)
+        public static (ControlFlowGraph<Instruction> Cfg, DataFlowGraph<Instruction> Dfg) ConstructSymbolicFlowGraph2(ControlFlowGraph<Instruction> cfg, long entrypoint)
         {
             var architecture = new X86Architecture();
-            var instructionProvider = new X86DecoderInstructionProvider(architecture, new MemoryStream(rawCode, false), 64, baseAddress, DecoderOptions.None);
-            var dfgBuilder = new X86StateTransitionResolver(architecture);
+            var instructionProvider = new GraphBasedInstructionProvider<Instruction>(architecture, cfg);
+            var dfgBuilder = new GraphBasedStateTransitionResolver<Instruction>(architecture, cfg);
             
             var cfgBuilder = new SymbolicFlowGraphBuilder<Instruction>(
                 instructionProvider,
                 dfgBuilder);
 
-            return (cfgBuilder.ConstructFlowGraph(entrypoint), dfgBuilder.DataFlowGraph);
+            var symbolicGraph = cfgBuilder.ConstructFlowGraph(entrypoint);
+            
+            var astBuilder = new AstParser<Instruction>(symbolicGraph, dfgBuilder.DataFlowGraph);
+            var parsedAST = astBuilder.Parse();
+            var dotWriter = new StringWriter();
+            parsedAST.ToDotGraph(dotWriter);
+            
+            return (symbolicGraph, dfgBuilder.DataFlowGraph);
         }
         
         private static HashSet<long> s_branchEliminatedBBsTemp = new HashSet<long>();
@@ -153,7 +161,6 @@ namespace ReadExceptionInfo
         public static void DoCFG(byte[] funcCodeBytes, ulong funcBaseVA, KeyFunctionAddresses keyFunctions)
         {
             var controlFlowGraph = ConstructStaticFlowGraph(funcCodeBytes, (long) funcBaseVA, funcBaseVA);
-            var (symbolicGraph, dataFlowGraph) = ControlFlowTest.ConstructSymbolicFlowGraph(funcCodeBytes, (long)funcBaseVA, funcBaseVA);
 
             //EliminateExceptionThrowerNode(controlFlowGraph.Nodes[0x180794908]); // ambig loop
             EliminateExceptionThrowerNode(controlFlowGraph.Nodes[0x1807949B3]); // ambig stream
@@ -200,6 +207,11 @@ namespace ReadExceptionInfo
             var dotWriter5 = new DotWriter(dotWriter4);
             var dominatorTree = DominatorTree<Instruction>.FromGraph(controlFlowGraph);
             dotWriter5.Write(dominatorTree);
+            
+            var (symbolicGraph2, dataFlowGraph2) = ConstructSymbolicFlowGraph2(controlFlowGraph, (long)funcBaseVA);
+            
+            var dotWriter2 = new StringWriter();
+            symbolicGraph2.ToDotGraph(dotWriter2);
 
             var analysis = new NewAnalysis(controlFlowGraph);
             analysis.Do();

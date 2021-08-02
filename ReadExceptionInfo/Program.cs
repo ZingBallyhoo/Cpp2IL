@@ -23,9 +23,9 @@ namespace ReadExceptionInfo
                 @"--game-path",
                 @"D:\re\il2cpp\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64",
                 @"--force-binary-path",
-                @"D:\re\il2cpp\Il2CppTests\Il2CppInspector\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64\GameAssembly-MyAttribute-x64.dll",
+                @"D:\re\il2cpp\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64\GameAssembly-MyAttribute-x64.dll",
                 @"--force-metadata-path",
-                @"D:\re\il2cpp\Il2CppTests\Il2CppInspector\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64\global-metadata.dat",
+                @"D:\re\il2cpp\Il2CppTests\TestBinaries\GameAssembly-MyAttribute-x64\global-metadata.dat",
                 @"--force-unity-version",
                 @"2019.4.15"
             });
