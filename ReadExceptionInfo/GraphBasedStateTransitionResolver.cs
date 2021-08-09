@@ -23,13 +23,13 @@ namespace ReadExceptionInfo
             
             foreach (var node in cfg.Nodes)
             {
-                long previousInstructionOffset = 0;
+                long previousInstructionOffset = -1;
                 
                 foreach (var instruction in node.Contents.Instructions)
                 {
                     var currentInstructionOffset = architecture.GetOffset(instruction);
 
-                    if (previousInstructionOffset != 0)
+                    if (previousInstructionOffset != -1)
                     {
                         m_nextInstructions.Add(previousInstructionOffset, currentInstructionOffset);
                     }
