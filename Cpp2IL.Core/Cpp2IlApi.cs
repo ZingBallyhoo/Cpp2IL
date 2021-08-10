@@ -283,6 +283,7 @@ namespace Cpp2IL.Core
 
             var counter = 0;
             var toProcess = assembly.MainModule.Types.Where(t => t.Namespace != AssemblyPopulator.InjectedNamespaceName).ToList();
+            if (toProcess.Count == 0) return;
             //Sort alphabetically by type.
             toProcess.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.Ordinal));
             var thresholds = new[] {10, 20, 30, 40, 50, 60, 70, 80, 90, 100}.ToList();
@@ -382,7 +383,14 @@ namespace Cpp2IL.Core
             Logger.InfoNewline($"Finished processing {numProcessed} methods in {elapsed.Ticks} ticks (about {Math.Round(elapsed.TotalSeconds, 1)} seconds), at an overall rate of about {Math.Round(toProcess.Count / elapsed.TotalSeconds)} methods/sec", "Analyze");
 
             var total = AsmAnalyzer.SUCCESSFUL_METHODS + AsmAnalyzer.FAILED_METHODS;
-            var successPercent = AsmAnalyzer.SUCCESSFUL_METHODS * 100 / total;
+            int successPercent;
+            if (total == 0)
+            {
+                successPercent = 0;
+            } else
+            {
+                successPercent = AsmAnalyzer.SUCCESSFUL_METHODS * 100 / total;
+            }
 
             Logger.InfoNewline($"Overall analysis success rate: {successPercent}% of {total} methods.");
         }

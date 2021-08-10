@@ -162,8 +162,8 @@ namespace ReadExceptionInfo
         {
             var controlFlowGraph = ConstructStaticFlowGraph(funcCodeBytes, (long) funcBaseVA, funcBaseVA);
 
-            //EliminateExceptionThrowerNode(controlFlowGraph.Nodes[0x180794908]); // ambig loop
-            EliminateExceptionThrowerNode(controlFlowGraph.Nodes[0x1807949B3]); // ambig stream
+            EliminateExceptionThrowerNode(controlFlowGraph.Nodes[0x180794918]); // ambig loop
+            //EliminateExceptionThrowerNode(controlFlowGraph.Nodes[0x1807949C3]); // ambig stream
 
             foreach (var controlFlowNode in controlFlowGraph.Nodes)
             {

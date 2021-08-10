@@ -16,6 +16,8 @@ namespace ReadExceptionInfo
 {
     public static class Program
     {
+        public static KeyFunctionAddresses s_keyFunctions = null!;
+        
         public static void Main(string[] args)
         {
             var cpp2IlArgs = Cpp2IL.Program.GetRuntimeOptionsFromCommandLine(new[]
@@ -36,11 +38,12 @@ namespace ReadExceptionInfo
             Cpp2IlApi.InitializeLibCpp2Il(cpp2IlArgs.PathToAssembly, cpp2IlArgs.PathToMetadata, cpp2IlArgs.UnityVersion, cpp2IlArgs.EnableVerboseLogging, cpp2IlArgs.EnableRegistrationPrompts);
             Cpp2IlApi.MakeDummyDLLs();
             var keyFunctions = Cpp2IlApi.ScanForKeyFunctionAddresses();
+            s_keyFunctions = keyFunctions;
 
             foreach (var exceptionEntry in peImage.Exceptions.GetEntries())
             {
                 var funcBaseVA = peImage.ImageBase + exceptionEntry.Begin.Rva;
-                if (funcBaseVA != 0x180794910)
+                if (funcBaseVA != 0x180794800)
                 {
                     continue;
                 }
@@ -63,7 +66,7 @@ namespace ReadExceptionInfo
                 var rva = rvaReader.ReadUInt32();
 
                 var funcInfoReader = CreateEHReaderAtRva(peFile, rva);
-                
+                 
                 var isCatch = funcInfoReader.ReadBit();
                 var isSeparated = funcInfoReader.ReadBit();
                 var BBT = funcInfoReader.ReadBit();

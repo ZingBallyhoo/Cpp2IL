@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Cpp2IL.Core.Analysis;
@@ -328,7 +329,15 @@ namespace Cpp2IL.Core
                     FillMethodBodyWithStub(methodDefinition);
 
                 SharedState.MethodsByIndex.TryAdd(methodDef.MethodIndex, methodDefinition);
-                SharedState.MethodsByAddress.TryAdd(methodDef.MethodPointer, methodDefinition);
+                var addResult = SharedState.MethodsByAddress.TryAdd(methodDef.MethodPointer, methodDefinition);
+                //Debug.Assert(addResult);
+
+                if (!SharedState.MethodsByAddress2.TryGetValue(methodDef.MethodPointer, out var methodList))
+                {
+                    methodList = new List<MethodDefinition>();
+                    SharedState.MethodsByAddress2[methodDef.MethodPointer] = methodList;
+                }
+                SharedState.MethodsByAddress2[methodDef.MethodPointer].Add(methodDefinition);
 
                 //Method Params
                 HandleMethodParameters(methodDef, methodDefinition);

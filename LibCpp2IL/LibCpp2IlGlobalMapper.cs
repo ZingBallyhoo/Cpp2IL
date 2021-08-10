@@ -11,7 +11,7 @@ namespace LibCpp2IL
         internal static List<MetadataUsage> FieldRefs = new();
         internal static List<MetadataUsage> Literals = new();
 
-        internal static Dictionary<ulong, MetadataUsage> TypeRefsByAddress = new();
+        public static Dictionary<ulong, MetadataUsage> TypeRefsByAddress = new();
         internal static Dictionary<ulong, MetadataUsage> MethodRefsByAddress = new();
         internal static Dictionary<ulong, MetadataUsage> FieldRefsByAddress = new();
         internal static Dictionary<ulong, MetadataUsage> LiteralsByAddress = new();

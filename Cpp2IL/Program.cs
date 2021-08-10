@@ -10,7 +10,7 @@ using LibCpp2IL;
 namespace Cpp2IL
 {
     [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-    internal class Program
+    public static class Program
     {
         private static readonly string[] BlacklistedExecutableFilenames =
         {
@@ -143,6 +143,8 @@ namespace Cpp2IL
             Logger.InfoNewline("Applying type, method, and field attributes...This may take a couple of seconds");
             var start = DateTime.Now;
 
+            //Cpp2IlApi.RunAttributeRestorationForAssembly(Cpp2IlApi.GetAssemblyByName("aaa"), keyFunctionAddresses);
+
             Cpp2IlApi.RunAttributeRestorationForAllAssemblies(keyFunctionAddresses);
 
             Logger.InfoNewline($"Finished Applying Attributes in {(DateTime.Now - start).TotalMilliseconds:F0}ms");
@@ -161,12 +163,13 @@ namespace Cpp2IL
 
         private static void DoAssemblyCSharpAnalysis(AnalysisLevel analysisLevel, string rootDir, KeyFunctionAddresses keyFunctionAddresses)
         {
-            var assemblyCsharp = Cpp2IlApi.GetAssemblyByName("Assembly-CSharp");
-
-            if (assemblyCsharp == null)
-                return;
-
-            Cpp2IlApi.AnalyseAssembly(analysisLevel, assemblyCsharp, keyFunctionAddresses, Path.Combine(rootDir, "types"), false);
+            foreach (var assembly in SharedState.AssemblyList)
+            {
+                if (assembly.Name.Name.Contains("mscorlib")) continue;
+                //if (assembly.Name.Name.Contains("UnityEngine")) continue;
+                //if (assembly.Name.Name.Contains("System")) continue;
+                Cpp2IlApi.AnalyseAssembly(analysisLevel, assembly, keyFunctionAddresses, Path.Combine(rootDir, "types_asm"), false);
+            }
         }
     }
 }
