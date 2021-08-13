@@ -34,6 +34,10 @@ namespace ReadExceptionInfo
 
         public void Do()
         {
+            var containingType = Utils.TryLookupTypeDefKnownNotGeneric("MyType");
+            Debug.Assert(containingType != null);
+            var analysedMethod = containingType.Methods.Single(x => x.Name == "AmbiguousLocalType");
+            
             var entrypoint = m_cfg.Entrypoint;
             Debug.Assert(entrypoint != null);
 
@@ -41,19 +45,17 @@ namespace ReadExceptionInfo
 
             var parsedAST = BuildAST();
             DeferredReadFixer.HandleDeferredReads(parsedAST);
+
+            var neededLocals = new NeededVariablesWalker(parsedAST);
+            neededLocals.RemoveUnneededInstructions();
+            
             var dotWriter = new StringWriter();
             parsedAST.ToDotGraph(dotWriter);
 
-            var neededLocals = NeededVariablesWalker.CollectNeededLocals(parsedAST);
-            var variableTypes = DetermineVariableTypes(neededLocals);
-
-            var containingType = Utils.TryLookupTypeDefKnownNotGeneric("MyType");
-            Debug.Assert(containingType != null);
-            var analysedMethod = containingType.Methods.Single(x => x.Name == "AmbiguousLocalType");
-
             var ilProcessor = analysedMethod.Body.GetILProcessor();
             ilProcessor.Clear();
-
+            
+            var variableTypes = DetermineVariableTypes(neededLocals);
             var variableIds = CreateCilLocals(variableTypes, ilProcessor);
 
             EmitIL(parsedAST, neededLocals, ilProcessor, variableIds, variableTypes);
@@ -121,19 +123,20 @@ namespace ReadExceptionInfo
                     }
 
                     var instructionExpression = (InstructionExpression<LiftedAction>) expression;
+                    
+                    if (!neededLocals.m_neededInstructions.Contains(instructionExpression))
+                    {
+                        // not needed for any control flow
+                        // todo: only here for sanity now, see RemoveUnneededInstructions
+
+                        continue;
+                    }
 
                     if (instructionExpression.Instruction is IBranchInstruction)
                     {
                         // emit phi before branch
 
                         EmitPhi();
-                    }
-
-                    if (!neededLocals.m_neededInstructions.Contains(instructionExpression))
-                    {
-                        // not needed for any control flow
-
-                        continue;
                     }
 
                     ITypeSpec? typeSpec = null;

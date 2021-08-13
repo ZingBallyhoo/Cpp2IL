@@ -7,10 +7,11 @@ using Echo.ControlFlow;
 using Echo.Core.Code;
 using ReadExceptionInfo.Actions;
 
-namespace ReadExceptionInfo
+namespace ReadExceptionInfo.Ast
 {
     public class NeededVariablesWalker
     {
+        private readonly ControlFlowGraph<Statement<LiftedAction>> m_cfg;
         public readonly Dictionary<IVariable, IVariable[]> m_neededPhi = new Dictionary<IVariable, IVariable[]>();
         public readonly Dictionary<IVariable, AssignmentStatement<LiftedAction>> m_neededAssignments = new Dictionary<IVariable, AssignmentStatement<LiftedAction>>();
         public readonly HashSet<InstructionExpression<LiftedAction>> m_neededInstructions = new HashSet<InstructionExpression<LiftedAction>>();
@@ -20,19 +21,61 @@ namespace ReadExceptionInfo
             
         private readonly HashSet<IVariable> m_pendingMoves = new HashSet<IVariable>();
 
-        public void AddPhi(PhiStatement<LiftedAction> phi)
+        public NeededVariablesWalker(ControlFlowGraph<Statement<LiftedAction>> cfg)
+        {
+            m_cfg = cfg;
+
+            foreach (var node in cfg.Nodes)
+            {
+                foreach (var statement in node.Contents.Instructions)
+                {
+                    if (statement is ExpressionStatement<LiftedAction> expressionStatement)
+                    {
+                        if (!HandleExpression(expressionStatement.Expression)) continue;
+                        AddNeededInstruction(expressionStatement.Expression);
+                    } else if (statement is AssignmentStatement<LiftedAction> assignmentStatement)
+                    {
+                        if (!HandleExpression(assignmentStatement.Expression)) continue;
+                        AddAssignmentFromSearch(assignmentStatement);
+                    }
+                }
+            }
+
+            bool HandleExpression(Expression<LiftedAction> expression)
+            {
+                if (expression is not InstructionExpression<LiftedAction> instructionExpression)
+                {
+                    throw new NotImplementedException(expression.ToString());
+                }
+
+                if (instructionExpression.Instruction is not IPreserveAction)
+                {
+                    // we don't need this for final control flow
+                    return false;
+                }
+
+                foreach (var readVariable in instructionExpression.Arguments)
+                {
+                    FindVariableOriginalAssignment2(readVariable.GetVariable());
+                }
+
+                return true;
+            }
+        }
+
+        private void AddPhi(PhiStatement<LiftedAction> phi)
         {
             m_neededPhi[phi.Target] = phi.Sources.Select(x => x.Variable).ToArray();
             FlushMoves(phi.Target); // flush reads from this phi
         }
 
-        public void AddPendingMove(IVariable dest)
+        private void AddPendingMove(IVariable dest)
         {
             m_pendingMoves.Add(dest);
         }
 
         // todo: avoid duplicate work here. function runs many times per assignment
-        public void AddAssignmentVariables(AssignmentStatement<LiftedAction> assignment)
+        private void AddAssignmentVariables(AssignmentStatement<LiftedAction> assignment)
         {
             // todo: only one assignment supported due to move flushing
             Debug.Assert(assignment.Variables.Count == 1);
@@ -54,7 +97,7 @@ namespace ReadExceptionInfo
             AddNeededInstruction(assignment.Expression);
         }
 
-        public void AddAssignmentFromSearch(AssignmentStatement<LiftedAction> assignment)
+        private void AddAssignmentFromSearch(AssignmentStatement<LiftedAction> assignment)
         {
             // todo: only one assignment supported due to move flushing
             Debug.Assert(assignment.Variables.Count == 1);
@@ -68,7 +111,7 @@ namespace ReadExceptionInfo
             AddNeededInstruction(assignment.Expression);
         }
 
-        public void FlushMoves(IVariable variable)
+        private void FlushMoves(IVariable variable)
         {
             if (m_pendingMoves.Count == 0) return;
 
@@ -88,59 +131,16 @@ namespace ReadExceptionInfo
             m_pendingMoves.Clear();
         }
 
-        public void AddNeededInstruction(Expression<LiftedAction> expressionStatementExpression)
+        private void AddNeededInstruction(Expression<LiftedAction> expressionStatementExpression)
         {
             m_neededInstructions.Add((InstructionExpression<LiftedAction>) expressionStatementExpression);
         }
-        
-        public static NeededVariablesWalker CollectNeededLocals(ControlFlowGraph<Statement<LiftedAction>> parsedAST)
-        {
-            var neededLocals = new NeededVariablesWalker();
-            foreach (var node in parsedAST.Nodes)
-            {
-                foreach (var statement in node.Contents.Instructions)
-                {
-                    if (statement is ExpressionStatement<LiftedAction> expressionStatement)
-                    {
-                        if (!HandleExpression(expressionStatement.Expression)) continue;
-                        neededLocals.AddNeededInstruction(expressionStatement.Expression);
-                    } else if (statement is AssignmentStatement<LiftedAction> assignmentStatement)
-                    {
-                        if (!HandleExpression(assignmentStatement.Expression)) continue;
-                        neededLocals.AddAssignmentFromSearch(assignmentStatement);
-                    }
-                }
-            }
 
-            bool HandleExpression(Expression<LiftedAction> expression)
-            {
-                if (expression is not InstructionExpression<LiftedAction> instructionExpression)
-                {
-                    throw new NotImplementedException(expression.ToString());
-                }
-
-                if (instructionExpression.Instruction is not IPreserveAction)
-                {
-                    // we don't need this for final control flow
-                    return false;
-                }
-
-                foreach (var readVariable in instructionExpression.Arguments)
-                {
-                    neededLocals.FindVariableOriginalAssignment2(parsedAST, readVariable.GetVariable());
-                }
-
-                return true;
-            }
-
-            return neededLocals;
-        }
-
-        private void FindVariableOriginalAssignment2(ControlFlowGraph<Statement<LiftedAction>> cfg, IVariable variable)
+        private void FindVariableOriginalAssignment2(IVariable variable)
         {
             START:
 
-            foreach (var node in cfg.Nodes)
+            foreach (var node in m_cfg.Nodes)
             {
                 foreach (var statement in node.Contents.Instructions)
                 {
@@ -153,7 +153,7 @@ namespace ReadExceptionInfo
 
                         foreach (VariableExpression<LiftedAction> phiSource in phi.Sources)
                         {
-                            FindVariableOriginalAssignment2(cfg, phiSource.Variable);
+                            FindVariableOriginalAssignment2(phiSource.Variable);
                         }
 
                         return;
@@ -200,7 +200,7 @@ namespace ReadExceptionInfo
                             throw new NotImplementedException();
                         }
 
-                        FindVariableOriginalAssignment2(cfg, argumentVariable.Variable);
+                        FindVariableOriginalAssignment2(argumentVariable.Variable);
                     }
 
                     return;
@@ -208,6 +208,27 @@ namespace ReadExceptionInfo
             }
 
             throw new Exception();
+        }
+
+        public void RemoveUnneededInstructions()
+        {
+            foreach (var node in m_cfg.Nodes)
+            {
+                foreach (var statement in node.Contents.Instructions.ToArray())
+                {
+                    if (statement is not AssignmentStatement<LiftedAction> assignment)
+                    {
+                        continue;
+                    }
+                    if (assignment.Expression is not InstructionExpression<LiftedAction> instructionExpression)
+                    {
+                        throw new NotImplementedException(assignment.Expression.ToString());
+                    }
+                    if (m_neededInstructions.Contains(instructionExpression)) continue;
+                    
+                    node.Contents.Instructions.Remove(statement);
+                }
+            }
         }
     }
 }
