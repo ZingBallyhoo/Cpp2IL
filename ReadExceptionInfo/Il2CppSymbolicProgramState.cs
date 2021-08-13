@@ -115,10 +115,10 @@ namespace ReadExceptionInfo
                 } else if (jumpTarget == s_keyFunctions.il2cpp_codegen_object_new || jumpTarget == s_keyFunctions.il2cpp_vm_object_new || jumpTarget == s_keyFunctions.il2cpp_object_new)
                 {
                     var typeObj = (ConcreteTypeDefinitionValue) m_runtimeInternalValues[Register.RCX];
-                    var newObj = new NewObjectAction(typeObj);
-                    AddAction(newObj);
-                    
-                    SetRuntimeInternalValue(Register.RAX, new NewlyCreatedReferenceTypeValue(newObj), false);
+
+                    var allocateInstruction = new AllocateObjectAction();
+                    AddAction(allocateInstruction);
+                    SetRuntimeInternalValue(Register.RAX, new NewlyCreatedReferenceTypeValue(typeObj, allocateInstruction), false);
                 }
             } else if (instruction.Mnemonic == Mnemonic.Add && instruction.Op0Kind == OpKind.Register && instruction.Op1Kind.IsImmediate())
             {
@@ -183,7 +183,9 @@ namespace ReadExceptionInfo
             
             if (!methodToCall.IsStatic && m_runtimeInternalValues.TryGetValue(Register.RCX, out var instInRcx) && instInRcx is NewlyCreatedReferenceTypeValue newlyCreatedReferenceType)
             {
-                newlyCreatedReferenceType.m_createdFromAction.SetConstructor(methodToCall);
+                var newObj = new ConstructObjectAction(newlyCreatedReferenceType.m_type, methodToCall);
+                newlyCreatedReferenceType.m_allocateInstruction.SetTargetAction(newObj);
+                AddAction(newObj);
                 return;
             }
             

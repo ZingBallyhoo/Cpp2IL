@@ -4,11 +4,13 @@ namespace ReadExceptionInfo.Tracing
 {
     public class NewlyCreatedReferenceTypeValue : ReferenceTypeValue
     {
-        public readonly NewObjectAction m_createdFromAction;
+        public readonly ConcreteTypeDefinitionValue m_type;
+        public readonly AllocateObjectAction m_allocateInstruction;
 
-        public NewlyCreatedReferenceTypeValue(NewObjectAction action) : base(action.m_type)
+        public NewlyCreatedReferenceTypeValue(ConcreteTypeDefinitionValue type, AllocateObjectAction allocate) : base(type.m_base)
         {
-            m_createdFromAction = action;
+            m_type = type;
+            m_allocateInstruction = allocate;
         }
     }
 }

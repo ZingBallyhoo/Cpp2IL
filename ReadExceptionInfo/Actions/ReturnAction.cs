@@ -7,7 +7,7 @@ namespace ReadExceptionInfo.Actions
 {
     public class ReturnAction : LiftedAction, IPreserveAction
     {
-        public Register[] GetReadRegisters() => new Register[] {/*Register.RAX*/};
+        public Register[] GetReadRegisters() => new Register[] {Register.RAX};
         public Register[] GetWrittenRegisters() => new Register[0];
         
         public ITypeSpec GetInitialTypeSpec()

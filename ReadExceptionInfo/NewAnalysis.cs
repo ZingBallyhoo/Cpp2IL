@@ -14,6 +14,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using ReadExceptionInfo.Actions;
+using ReadExceptionInfo.Ast;
 using ReadExceptionInfo.Typing;
 using Instruction = Iced.Intel.Instruction;
 
@@ -39,6 +40,7 @@ namespace ReadExceptionInfo
             TraverseBlock(entrypoint);
 
             var parsedAST = BuildAST();
+            DeferredReadFixer.HandleDeferredReads(parsedAST);
             var dotWriter = new StringWriter();
             parsedAST.ToDotGraph(dotWriter);
 
@@ -48,9 +50,8 @@ namespace ReadExceptionInfo
             var containingType = Utils.TryLookupTypeDefKnownNotGeneric("MyType");
             Debug.Assert(containingType != null);
             var analysedMethod = containingType.Methods.Single(x => x.Name == "AmbiguousLocalType");
-            var methodBody = analysedMethod.Body;
 
-            var ilProcessor = methodBody.GetILProcessor();
+            var ilProcessor = analysedMethod.Body.GetILProcessor();
             ilProcessor.Clear();
 
             var variableIds = CreateCilLocals(variableTypes, ilProcessor);

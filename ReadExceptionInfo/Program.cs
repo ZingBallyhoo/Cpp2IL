@@ -43,7 +43,7 @@ namespace ReadExceptionInfo
             foreach (var exceptionEntry in peImage.Exceptions.GetEntries())
             {
                 var funcBaseVA = peImage.ImageBase + exceptionEntry.Begin.Rva;
-                if (funcBaseVA != 0x180794800)
+                if (funcBaseVA != 0x180794920)
                 {
                     continue;
                 }
